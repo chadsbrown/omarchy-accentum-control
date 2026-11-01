@@ -215,6 +215,12 @@ the Updates tab with a dot. Failed checks, rate limits, missing releases and an
 unreadable installed version are distinct from an up-to-date result. Drafts and
 prereleases are not offered.
 
+Plugin and firmware checks run in a separate metadata process with a hard
+ten-second deadline for the entire check, including both firmware catalog
+requests. Only the check buttons are disabled while a check runs; local device
+controls and passive reconnect maintenance remain available across monitors.
+A timed-out process is killed and can be retried.
+
 Checks happen only when requested. No GitHub login, token, device identifier or
 firmware image is sent, and the widget never installs updates automatically.
 Standard Git-managed installations update through:

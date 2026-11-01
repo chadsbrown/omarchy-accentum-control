@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "phi0x.sennheiser",
   "name": "Sennheiser Control",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "phi0x",
   "description": "BTD 700 and HDB 630 controls",
   "kinds": [

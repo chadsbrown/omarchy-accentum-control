@@ -29,6 +29,8 @@ Before changing code:
 - `backend/shared.py`: private Unix-socket broker with one hardware worker shared
   across monitors. All widgets receive the same status.
 - `backend/service.py`: serialized requests, polling, reads and explicit writes.
+- `backend/network_checks.py`: metadata-only subprocess supervisor with an OS
+  wall-clock deadline, nonblocking completion and bounded cancellation.
 - `backend/dongle.py`: BTD 700 HID protocol. `backend/headphones.py`: HDB 630
   GAIA/RFCOMM protocol. Direct headphone control uses the computer's Bluetooth
   adapter separately from dongle audio and occupies another multipoint slot.
@@ -68,6 +70,11 @@ Before changing code:
   It must never cover help icons or settings.
 - Tab shading identifies selection. Draw button focus rings for keyboard
   navigation (`visualFocus`), rather than automatic focus on panel opening.
+- Run plugin and firmware network checks outside the hardware worker, with a
+  hard overall deadline covering DNS, TLS, headers and response reads. Keep the
+  update-check busy state separate from hardware busy state. Test slow trickling
+  responses, cleanup, retries and control availability on multiple monitors. A
+  thread or per-socket timeout alone does not bound the full check.
 - Firmware installation is not implemented. Never describe catalog checks or
   mocked transfers as successful flashing. Keep unvalidated flashing experiments
   out of the default branch; follow the roadmap's model-specific validation and

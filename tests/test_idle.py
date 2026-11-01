@@ -78,7 +78,7 @@ class IdleServiceTests(unittest.TestCase):
         self.presets.names.return_value = []
         self.presets.load.return_value = {'stages': [], 'pregain': -3}
 
-    def run_worker(self, requests, events):
+    def run_worker(self, requests, events, checks=None):
         stdin = io.StringIO(''.join(json.dumps(r) + '\n' for r in requests))
         stdout = io.StringIO()
         sequence = iter(events)
@@ -97,7 +97,7 @@ class IdleServiceTests(unittest.TestCase):
              patch.object(service, 'devices', return_value=[]), \
              patch.object(service.select, 'select', side_effect=readiness), \
              patch.object(sys, 'stdin', stdin), patch.object(sys, 'stdout', stdout):
-            service.run()
+            service.run(checks=checks)
         return [json.loads(line) for line in stdout.getvalue().splitlines()]
 
     def test_idle_ticks_keep_cached_values_without_bulk_reads(self):
@@ -122,12 +122,34 @@ class IdleServiceTests(unittest.TestCase):
         self.assertEqual(frames[-1]['peq_revision'], 1)
         self.assertEqual(frames[-1]['peq']['pregain'], -3)
 
-    def test_plugin_update_check_does_not_read_hardware(self):
+    def test_plugin_update_check_does_not_read_hardware_or_block_controls(self):
         result = {'status': 'update-available', 'latest': '0.1.2'}
-        with patch.object(service, 'check_plugin_updates', return_value=result) as check:
-            frames = self.run_worker([{'action': 'plugin_update_check'}], [True, True])
-        check.assert_called_once_with(frames[-1]['plugin']['version'])
+        checks = Mock(spec=service.NetworkChecks)
+        checks.fileno.return_value = None
+        checks.wait_timeout.return_value = 5
+        checks.start.return_value = True
+        checks.poll.side_effect = [None, ('plugin_update_check', result)]
+        frames = self.run_worker([{'action': 'plugin_update_check'}], [True, True], checks)
+        checks.start.assert_called_once_with('plugin_update_check', frames[-1]['plugin']['version'])
+        checks.close.assert_called_once()
         self.assertEqual(frames[-1]['plugin_update'], result)
+        self.assertTrue(frames[1]['update_check_busy'])
+        self.assertFalse(frames[-1]['update_check_busy'])
+        self.assertTrue(all(not f['busy'] for f in frames))
+        self.dongle.status.assert_called_once()
+        self.hp.status.assert_called_once()
+
+    def test_firmware_check_uses_cached_versions_without_extra_device_reads(self):
+        self.dongle.status.return_value['firmware'] = '3.11.0'
+        self.hp.status.return_value['values']['firmware'] = '3.33.3'
+        checks = Mock(spec=service.NetworkChecks)
+        checks.fileno.return_value = None
+        checks.wait_timeout.return_value = 5
+        checks.start.return_value = True
+        checks.poll.side_effect = [None, ('firmware_check', {'devices': {}})]
+        frames = self.run_worker([{'action': 'firmware_check'}], [True, True], checks)
+        checks.start.assert_called_once_with('firmware_check', {'dongle': '3.11.0', 'headphones': '3.33.3'})
+        self.assertTrue(all(not f['busy'] for f in frames))
         self.dongle.status.assert_called_once()
         self.hp.status.assert_called_once()
 

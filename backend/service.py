@@ -1,5 +1,5 @@
 #!/usr/bin/python
-"""Line-delimited hardware worker. Network access only for explicit firmware checks."""
+"""Serialized hardware controls with separate, bounded update-check subprocesses."""
 import json
 import os
 from pathlib import Path
@@ -11,8 +11,8 @@ from dongle import Dongle
 from headphones import Headphones
 from reconnect import Reconnector
 from presets import Presets
-from firmware import check as check_firmware
-from plugin_updates import installed as plugin_info, check as check_plugin_updates
+from plugin_updates import installed as plugin_info
+from network_checks import NetworkChecks, failed as check_failed
 
 
 def devices():
@@ -31,13 +31,14 @@ def devices():
     return found
 
 
-def run():
+def run(maintenance_interval=5, checks=None):
+    checks = checks if checks is not None else NetworkChecks()
     dongle = None
     headphones = Headphones()
     reconnect = Reconnector(headphones, devices)
     presets = Presets()
     state = dict(dongle={}, headphones={}, devices=[], message='', busy=False,
-                 plugin=plugin_info())
+                 plugin=plugin_info(), update_check_busy=False, update_check_operation="")
     def emit():
         print(json.dumps(state, allow_nan=False), flush=True)
     def refresh(full=True):
@@ -93,11 +94,22 @@ def run():
             state['message'] = f'Preset library: {exc}'
         refresh()
         while True:
+            completed = checks.poll()
+            if completed is not None:
+                kind, result = completed
+                state['firmware_check' if kind == 'firmware_check' else 'plugin_update'] = result
+                state['update_check_busy'] = False
+                state['update_check_operation'] = ''
+                refresh(full=False)
+            network_fd = checks.fileno()
+            timeout = checks.wait_timeout(maintenance_interval)
             if input_fd is not None:
                 if b'\n' not in input_buffer:
-                    ready, _, _ = select.select([input_fd], [], [], 5)
+                    ready, _, _ = select.select([input_fd] + ([] if network_fd is None else [network_fd]), [], [], timeout)
                     if not ready:
                         refresh(full=False)
+                        continue
+                    if input_fd not in ready:
                         continue
                     chunk = os.read(input_fd, 65536)
                     if not chunk:
@@ -109,9 +121,11 @@ def run():
                 input_buffer[:] = remainder
                 line = raw_line.decode('utf-8')
             else:
-                ready, _, _ = select.select([sys.stdin], [], [], 5)
+                ready, _, _ = select.select([sys.stdin] + ([] if network_fd is None else [network_fd]), [], [], timeout)
                 if not ready:
                     refresh(full=False)
+                    continue
+                if sys.stdin not in ready:
                     continue
                 line = sys.stdin.readline()
                 if not line:
@@ -120,6 +134,22 @@ def run():
             try:
                 req = json.loads(line)
                 action = req.get('action')
+                if action in ('firmware_check', 'plugin_update_check'):
+                    if action == 'firmware_check':
+                        installed = {'dongle': state.get('dongle', {}).get('firmware'),
+                                     'headphones': state.get('headphones', {}).get('values', {}).get('firmware')}
+                    else:
+                        state['plugin'] = plugin_info()
+                        installed = state['plugin']['version']
+                    try:
+                        if checks.start(action, installed):
+                            state['update_check_busy'] = True
+                            state['update_check_operation'] = action
+                    except Exception:
+                        state['firmware_check' if action == 'firmware_check' else 'plugin_update'] = check_failed(
+                            action, installed, 'Could not start the update check. Try again.')
+                    refresh(full=False)
+                    continue
                 state['busy'] = True
                 state['operation'] = action
                 emit()
@@ -155,15 +185,6 @@ def run():
                     state['headphones'] = reconnect.status()
                 elif action == 'setting':
                     headphones.set_value(req['key'], req['value'])
-                elif action == 'firmware_check':
-                    # Version metadata only: no images, USB update reports or Bluetooth DFU.
-                    installed = {'dongle': state.get('dongle', {}).get('firmware')}
-                    if headphones.sock:
-                        installed['headphones'] = headphones.status()['values'].get('firmware')
-                    state['firmware_check'] = check_firmware(installed)
-                elif action == 'plugin_update_check':
-                    state['plugin'] = plugin_info()
-                    state['plugin_update'] = check_plugin_updates(state['plugin']['version'])
                 elif action == 'broadcast_read':
                     state['broadcast'] = dongle.broadcast()
                 elif action == 'broadcast_write':
@@ -218,6 +239,7 @@ def run():
             refresh(full=action not in ('preset_save', 'preset_load', 'preset_delete',
                                        'paired_read', 'plugin_update_check'))
     finally:
+        checks.close()
         reconnect.close()
         if dongle:
             dongle.close()

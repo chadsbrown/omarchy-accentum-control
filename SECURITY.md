@@ -13,6 +13,14 @@ release metadata only. No firmware images or plugin packages are downloaded or
 installed. External buttons open official software pages or this project's release
 notes. A failed check is never reported as an up-to-date result.
 
+Metadata checks run in a separate, unprivileged subprocess with a ten-second
+wall-clock deadline enforced by the OS, plus a controller-side kill fallback.
+Only public version strings are passed to it; device handles and the controller
+state are not inherited. One check runs at a time, results are bounded, and
+shutdown cancels and reaps pending checks. The hardware worker remains responsive
+and never waits for an HTTPS request. A socket-operation timeout alone is not an
+overall deadline and must not be used as one.
+
 Broadcast passwords are forwarded locally to the dongle and are not returned in
 shared status or written to the preset library. The active desktop user can
 inspect their own process memory; this is not a separate security boundary.

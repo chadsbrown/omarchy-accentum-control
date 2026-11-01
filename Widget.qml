@@ -23,6 +23,8 @@ Panel {
     readonly property var values: hp.values || ({})
     readonly property var pluginInfo: snapshot.plugin || ({})
     readonly property var pluginUpdate: snapshot.plugin_update || ({})
+    readonly property bool updateCheckBusy: !!snapshot.update_check_busy
+    readonly property string updateCheckOperation: snapshot.update_check_operation || ""
     readonly property bool blockingBusy: !!snapshot.busy && snapshot.operation !== "setting"
     property int broadcastRevision: snapshot.broadcast_revision || 0
     onBroadcastRevisionChanged: {
@@ -1135,7 +1137,8 @@ Panel {
                                 }
                             }
                             Action {
-                                text: "Check for plugin updates"
+                                text: root.updateCheckOperation === "plugin_update_check" ? "Checking plugin updates…" : "Check for plugin updates"
+                                enabled: !root.blockingBusy && !root.updateCheckBusy
                                 onClicked: root.send({ action: "plugin_update_check" })
                             }
                             Action {
@@ -1161,7 +1164,8 @@ Panel {
                                 text: "Checks run only when requested. This app checks versions; installation uses the official Sennheiser software."
                             }
                             Action {
-                                text: "Check for firmware updates"
+                                text: root.updateCheckOperation === "firmware_check" ? "Checking firmware updates…" : "Check for firmware updates"
+                                enabled: !root.blockingBusy && !root.updateCheckBusy
                                 onClicked: root.send({
                                     action: "firmware_check"
                                 })
