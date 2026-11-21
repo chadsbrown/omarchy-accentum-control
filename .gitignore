@@ -14,7 +14,7 @@ presets.json
 *.pcap
 *.pcapng
 *.core
-.sennheiser-managed
+
 .pytest_cache/
 .venv/
 dist/

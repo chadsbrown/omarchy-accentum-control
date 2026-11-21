@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "id": "phi0x.sennheiser",
-  "name": "Sennheiser Control",
-  "version": "0.1.2",
-  "author": "phi0x",
-  "description": "BTD 700 and HDB 630 controls",
+  "id": "chadsbrown.accentum",
+  "name": "Accentum Control",
+  "version": "0.1.0",
+  "author": "chadsbrown",
+  "description": "Noise control, equalizer and call settings for Sennheiser ACCENTUM headphones",
   "kinds": [
     "bar-widget"
   ],
@@ -12,7 +12,7 @@
     "barWidget": "Widget.qml"
   },
   "barWidget": {
-    "displayName": "Sennheiser",
+    "displayName": "Accentum",
     "category": "Audio",
     "allowMultiple": false,
     "defaultSection": "right"

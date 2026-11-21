@@ -12,7 +12,7 @@ class Reconnector:
     def __init__(self, headphones, devices, state_path=None, clock=time.monotonic):
         self.headphones = headphones
         self.devices = devices
-        self.path = state_path or Path(os.environ.get('XDG_STATE_HOME', Path.home()/'.local/state')) / 'sennheiser-control/connection.json'
+        self.path = state_path or Path(os.environ.get('XDG_STATE_HOME', Path.home()/'.local/state')) / 'accentum-control/connection.json'
         self.clock = clock
         self.target = None
         self.attempts = 0
@@ -87,7 +87,7 @@ class Reconnector:
         try:
             known = next((d for d in self.devices() if d['address'] == self.target), None)
             if not known or not known['paired']:
-                raise OSError('Pair the HDB 630 with this computer to restore headphone controls.')
+                raise OSError('Pair the headphones with this computer to restore headphone controls.')
             if not known.get('adapter_powered', True):
                 raise OSError('Computer Bluetooth is off. Turn it on; controls will reconnect automatically.')
             self._claim()
@@ -99,7 +99,7 @@ class Reconnector:
             self.close()
             self.attempts += 1
             self.retry_at = self.clock() + (2, 5, 10, 20, 30)[min(self.attempts-1, 4)]
-            if 'Bluetooth is off' in str(exc) or 'Pair the HDB' in str(exc) or 'another panel' in str(exc):
+            if 'Bluetooth is off' in str(exc) or 'Pair the headphones' in str(exc) or 'another panel' in str(exc):
                 self.error = str(exc)
             else:
                 self.error = 'Waiting for the headphones. Turn them on; controls will retry automatically. If they stay unavailable, disconnect your phone to free a multipoint slot.'

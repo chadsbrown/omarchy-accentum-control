@@ -11,7 +11,7 @@ import sys
 
 def runtime_dir():
     parent = Path(os.environ.get('XDG_RUNTIME_DIR', '/tmp'))
-    path = parent / f'sennheiser-control-{os.getuid()}'
+    path = parent / f'accentum-control-{os.getuid()}'
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
     if path.stat().st_uid != os.getuid():
         raise PermissionError('Controller runtime directory belongs to another user')

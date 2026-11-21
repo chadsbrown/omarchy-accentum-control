@@ -10,7 +10,7 @@ import tempfile
 def helper_path():
     source = Path(__file__).resolve().parent.parent/'native/sdp-channel.c'
     digest = hashlib.sha256(source.read_bytes()+platform.machine().encode()).hexdigest()[:20]
-    cache = Path(os.environ.get('XDG_CACHE_HOME', Path.home()/'.cache'))/'sennheiser-control/native'
+    cache = Path(os.environ.get('XDG_CACHE_HOME', Path.home()/'.cache'))/'accentum-control/native'
     cache.mkdir(mode=0o700, parents=True, exist_ok=True)
     target = cache/f'sdp-{digest}'
     if target.is_file() and os.access(target,os.X_OK):

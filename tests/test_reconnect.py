@@ -86,7 +86,7 @@ class ReconnectTests(unittest.TestCase):
         self.known[0]['paired'] = False
         self.manager.connect(MAC)
         self.assertEqual(self.hp.calls, 0)
-        self.assertIn('Pair the HDB', self.manager.error)
+        self.assertIn('Pair the headphones', self.manager.error)
     def test_invalid_address_does_not_overwrite_remembered_target(self):
         self.manager.connect(MAC)
         with self.assertRaises(ValueError): self.manager.connect('invalid')

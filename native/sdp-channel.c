@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     }
     sdp_list_free(records, (sdp_free_func_t)sdp_record_free);
     sdp_list_free(search, NULL); sdp_list_free(attrs, NULL); sdp_close(session);
-    if (!channel) { fprintf(stderr, "HDB 630 control service not found\n"); return 1; }
+    if (!channel) { fprintf(stderr, "Headphone control service not found\n"); return 1; }
     printf("%d\n", channel);
     return 0;
 }
